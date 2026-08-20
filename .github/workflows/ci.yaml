@@ -1,0 +1,69 @@
+name: Publish Gradle Plugin
+
+on:
+  push:
+    branches: [main, develop, ci/add-ci-and-git-hooks]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ci-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Yaml Lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 120
+                level: warning
+              document-start: disable
+              truthy: disable
+
+      - name: Run Hadolint
+        if: hashFiles('Dockerfile') != ''
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - name: Setup Java and Gradle Cache
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Code Style, Unit & Integration Tests
+        run: ./gradlew clean check --no-daemon
+
+      - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: ./gradlew sonar -Dsonar.token=$SONAR_TOKEN
+
+      - name: Upload Test Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: build/reports/tests/test/
+
+      - name: Publish to GitHub Packages
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew publish --no-daemon

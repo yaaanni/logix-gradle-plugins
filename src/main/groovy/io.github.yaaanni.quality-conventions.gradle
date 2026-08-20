@@ -1,0 +1,57 @@
+plugins {
+	id 'checkstyle'
+	id 'pmd'
+	id 'jacoco'
+	id 'com.github.spotbugs'
+	id 'org.sonarqube'
+	id 'com.diffplug.spotless'
+}
+
+checkstyle {
+	toolVersion = '10.15.0'
+	config = resources.text.fromArchiveEntry(
+			configurations.checkstyle.filter { it.name.startsWith("checkstyle-") },
+			'google_checks.xml'
+			)
+	ignoreFailures = false
+}
+
+spotless {
+	java {
+		target 'src/**/*.java'
+		googleJavaFormat('1.21.0')
+		removeUnusedImports()
+	}
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+	}
+}
+
+tasks.withType(Test).configureEach {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+sonar {
+	properties {
+		property "sonar.organization", "yaaanni"
+		property "sonar.host.url", "https://sonarcloud.io"
+		property "sonar.projectKey", "yaaanni_${project.name}"
+		property "sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
+	}
+}
+
+tasks.named('sonar') {
+	dependsOn test, jacocoTestReport
+}
+
+tasks.register('installGitHooks', Exec) {
+	commandLine 'sh', '-c', 'chmod +x .githooks/pre-commit 2>/dev/null || true; git config core.hooksPath .githooks'
+}
+
+tasks.named('compileJava') {
+	dependsOn 'installGitHooks'
+}

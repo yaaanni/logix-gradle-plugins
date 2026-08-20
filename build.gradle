@@ -1,20 +1,69 @@
 plugins {
-    id 'java'
+	id 'groovy-gradle-plugin'
+	id 'maven-publish'
+
+	id 'org.sonarqube' version '5.1.0.4882'
+	id 'com.diffplug.spotless' version '6.25.0'
+	id 'com.github.spotbugs' version '6.0.26'
 }
 
 group = 'io.github.yaaanni'
-version = '1.0-SNAPSHOT'
+version = '1.0.0'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
 
 repositories {
-    mavenCentral()
+	mavenCentral()
+	gradlePluginPortal()
+}
+
+spotbugs {
+	ignoreFailures = false
+	excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:6.0.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'com.diffplug.spotless:spotless-plugin-gradle:8.9.0'
+	implementation 'com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.10'
+	implementation 'org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:7.4.0.8496'
 }
 
-test {
-    useJUnitPlatform()
+publishing {
+	repositories {
+		maven {
+			name = "GitHubPackages"
+			url = uri("https://maven.pkg.github.com/yaaanni/logix-gradle-plugins")
+			credentials {
+				username = System.getenv("GITHUB_ACTOR")
+				password = System.getenv("GITHUB_TOKEN")
+			}
+		}
+	}
+}
+
+tasks.register('installGitHooks', Exec) {
+	commandLine 'sh', '-c', 'chmod +x .githooks/pre-commit 2>/dev/null || true; git config core.hooksPath .githooks'
+}
+
+tasks.named('compileJava') {
+	dependsOn 'installGitHooks'
+}
+
+sonar {
+	properties {
+		property "sonar.host.url", "https://sonarcloud.io"
+		property "sonar.organization", "yaaanni"
+		property "sonar.projectKey", "yaaanni_logix-gradle-plugins"
+	}
+}
+
+spotless {
+	groovyGradle {
+		target '*.gradle', 'src/**/*.gradle'
+		greclipse()
+	}
 }
