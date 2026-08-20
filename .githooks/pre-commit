@@ -1,15 +1,18 @@
 #!/bin/sh
 
-echo "===> Running Spotless auto-formatting..."
-./gradlew spotlessApply
-
-git add -u
-
-echo "===> Running Checkstyle..."
-./gradlew checkstyleMain
+echo "===> Checking code formatting..."
+./gradlew spotlessCheck
 
 if [ $? -ne 0 ]; then
-    echo "Checkstyle failed! Fix the errors above and try committing again."
+    echo "Formatting errors found! Run './gradlew spotlessApply', stage changes, and try again."
+    exit 1
+fi
+
+echo "===> Running project checks..."
+./gradlew check
+
+if [ $? -ne 0 ]; then
+    echo "Build or tests failed! Fix the errors above and try committing again."
     exit 1
 fi
 
