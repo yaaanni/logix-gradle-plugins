@@ -1,20 +1,31 @@
 plugins {
-    id 'java'
+    id 'groovy-gradle-plugin'
+    id 'maven-publish'
 }
 
 group = 'io.github.yaaanni'
-version = '1.0-SNAPSHOT'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
+    gradlePluginPortal()
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:6.0.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'com.diffplug.spotless:spotless-plugin-gradle:8.9.0'
+    implementation 'com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.10'
+    implementation 'org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:7.4.0.8496'
 }
 
-test {
-    useJUnitPlatform()
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/yaaanni/logix-gradle-plugins")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
 }
